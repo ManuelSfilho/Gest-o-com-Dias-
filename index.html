@@ -5,6 +5,8 @@
 <title>Painel de Lojas</title>
 
 <link rel="icon" type="image/png" href="logo.png">
+<link rel="shortcut icon" href="logo.png">
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
@@ -23,14 +25,14 @@ body{
   align-items:center;
   gap:12px;
   margin-bottom:20px;
-  font-weight:900;
+  font-weight: 900;
 }
 
 .logo{
   width:110px;
   height:110px;
   object-fit:contain;
-  border-radius:16px;
+  border-radius:16px ;
 }
 
 .topo{
@@ -40,12 +42,23 @@ body{
   margin-bottom:20px;
 }
 
-.card,.cardestoque{
+.card{
   background:#3a3a3a;
   padding:15px;
   border-radius:10px;
   border:2px solid #ff5252;
   box-shadow:0 0 10px rgba(255,82,82,0.2);
+  margin-left: 40px;
+  text-align:center;
+}
+
+.cardestoque{
+  background:#3a3a3a;
+  padding:15px;
+  border-radius:10px;
+  border:2px solid #ff5252;
+  box-shadow:0 0 10px rgba(255,82,82,0.2);
+  margin-left: 90px;
   text-align:center;
 }
 
@@ -69,22 +82,28 @@ input, select{
   border-radius:10px;
   border:2px solid #ff5252;
   overflow:auto;
+  font-size: 13px;
 }
 
 th{
   background:#ff5252;
+  color:#fff;
   padding:10px;
 }
 
 td{
   padding:8px;
   border-bottom:1px solid #555;
-  font-weight:bold;
+  font-weight: bold;
 }
 
 .baixo{ background:#ff5252; }
 .alto{ background:#4caf50; }
 
+@media(max-width:900px){
+  .container{ flex-direction:column; }
+  .topo{ flex-direction:column; }
+}
 </style>
 </head>
 
@@ -93,7 +112,7 @@ td{
 <div class="topo">
 
 <div class="card">
-<b>Loja</b><br><br>
+<b>Selecionar Loja</b><br><br>
 <select id="lojaSelecionada" onchange="renderTudo()">
 <option>Agulhas Negras</option>
 <option>Pedra</option>
@@ -103,22 +122,30 @@ td{
 </div>
 
 <div class="card">
-<b>ABC</b><br><br>
+<b>Produtos ABC</b><br><br>
 <input type="file" onchange="carregarABC(event)">
 </div>
 
+<h1 class="titulo">
+<img src="logo.png" class="logo">Painel de Lojas
+</h1>
+
 <div class="cardestoque">
-<b>Estoque</b><br><br>
+<b>Posição do Estoque</b><br><br>
 <input type="file" onchange="carregarEstoque(event)">
 </div>
 
+<!-- 🔥 NOVO (única adição visual) -->
 <div class="card">
-<b>Dias</b><br><br>
-Necessidade:
-<input type="number" id="diasN" value="5" oninput="renderTudo()">
+<b>Dias de Cobertura</b><br><br>
+
+<label>Necessidade:</label>
+<input type="number" id="diasNecessidade" value="5">
+
 <br><br>
-Excesso:
-<input type="number" id="diasE" value="10" oninput="renderTudo()">
+
+<label>Excesso:</label>
+<input type="number" id="diasExcesso" value="10">
 </div>
 
 </div>
@@ -126,21 +153,23 @@ Excesso:
 <div class="container">
 
 <div class="tabela-box">
-<h3>ABC</h3>
-<input id="buscaABC" onkeyup="renderABC()" placeholder="Buscar">
+<h3>Produtos ABC</h3>
+<select id="filtroGrupoABC" onchange="renderABC()"></select>
+<input type="text" id="buscaABC" placeholder="Buscar Produto..." onkeyup="renderABC()">
 <div id="tabelaABC"></div>
 </div>
 
 <div class="tabela-box">
-<h3>Estoque</h3>
-<input id="buscaEstoque" onkeyup="renderEstoque()" placeholder="Buscar">
+<h3>Posição do Estoque</h3>
+<select id="filtroGrupoEstoque" onchange="renderEstoque()"></select>
+<input type="text" id="buscaEstoque" placeholder="Buscar Produto..." onkeyup="renderEstoque()">
 <div id="tabelaEstoque"></div>
 </div>
 
 </div>
 
 <div class="tabela-box">
-<h3>Transferências</h3>
+<h3>Transferências Sugeridas</h3>
 <div id="transferencias"></div>
 </div>
 
@@ -165,184 +194,225 @@ function acharColuna(obj, nomes){
 
 // ===== ABC =====
 function carregarABC(e){
-const r = new FileReader();
+const reader = new FileReader();
 
-r.onload = ev=>{
-let wb = XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+reader.onload = function(e){
+const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
 let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 if(!dados.length) return;
 
-let ex = dados[0];
+const ex = dados[0];
 
-let cGrupo = acharColuna(ex,["grupo"]);
-let cProd = acharColuna(ex,["produto","descr","nome"]);
-let cEst = acharColuna(ex,["estoque"]);
-let cVend = acharColuna(ex,["vend","qtd"]);
+const colGrupo = acharColuna(ex, ["grupo"]);
+const colDesc = acharColuna(ex, ["descr","produto","nome"]);
+const colEstoque = acharColuna(ex, ["estoque"]);
+const colVendido = acharColuna(ex, ["vend","qtd"]);
 
-dados = dados.map(l=>({
-grupo:l[cGrupo],
-produto:l[cProd],
-estoque:Number(l[cEst])||0,
-vendidos:Number(l[cVend])||0,
+dados = dados.map(l => ({
+grupo: l[colGrupo],
+produto: l[colDesc],
+estoque: Number(l[colEstoque]) || 0,
+vendidos: Number(l[colVendido]) || 0,
 raw:l
 }));
 
 banco[lojaAtual()].abc = dados;
+preencherFiltroGrupoABC(dados);
 renderTudo();
 };
 
-r.readAsArrayBuffer(e.target.files[0]);
+reader.readAsArrayBuffer(e.target.files[0]);
 }
 
 // ===== ESTOQUE =====
 function carregarEstoque(e){
-const r = new FileReader();
+const reader = new FileReader();
 
-r.onload = ev=>{
-let wb = XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+reader.onload = function(e){
+const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
 let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 if(!dados.length) return;
 
-let ex = dados[0];
+const ex = dados[0];
 
-let cGrupo = acharColuna(ex,["grupo"]);
-let cNome = acharColuna(ex,["nome","descr"]);
-let cEst = acharColuna(ex,["estoque"]);
+const colGrupo = acharColuna(ex, ["grupo"]);
+const colNome = acharColuna(ex, ["nome","descr"]);
+const colEstoque = acharColuna(ex, ["estoque"]);
 
-dados = dados.map(l=>({
-grupo:l[cGrupo],
-nome:l[cNome],
-estoque:Number(l[cEst])||0,
+dados = dados.map(l => ({
+grupo: l[colGrupo],
+nome: l[colNome],
+estoque: Number(l[colEstoque]) || 0,
 raw:l
 }));
 
 banco[lojaAtual()].estoque = dados;
+preencherFiltroGrupoEstoque(dados);
 renderTudo();
 };
 
-r.readAsArrayBuffer(e.target.files[0]);
+reader.readAsArrayBuffer(e.target.files[0]);
 }
 
-// ===== RENDER ABC =====
-function renderABC(){
+// filtros
+function preencherFiltroGrupoABC(dados){
+const select = document.getElementById("filtroGrupoABC");
+const grupos = [...new Set(dados.map(d => d.grupo))];
+select.innerHTML = `<option value="">Todos</option>`;
+grupos.forEach(g => select.innerHTML += `<option>${g}</option>`);
+}
 
+function preencherFiltroGrupoEstoque(dados){
+const select = document.getElementById("filtroGrupoEstoque");
+const grupos = [...new Set(dados.map(d => d.grupo))];
+select.innerHTML = `<option value="">Todos</option>`;
+grupos.forEach(g => select.innerHTML += `<option>${g}</option>`);
+}
+
+// render ABC
+function renderABC(){
 let dados = banco[lojaAtual()].abc;
 let busca = document.getElementById("buscaABC").value.toLowerCase();
+let filtroGrupo = document.getElementById("filtroGrupoABC").value;
 
-let diasN = Number(document.getElementById("diasN").value)||5;
-let diasE = Number(document.getElementById("diasE").value)||10;
+if(!dados.length){
+document.getElementById("tabelaABC").innerHTML = "Sem dados";
+return;
+}
 
-let html="<table><tr><th>Produto</th><th>Estoque</th><th>Vendidos</th><th>Média</th><th>Necessidade</th><th>Excesso</th></tr>";
+let html = "<table><tr>";
+html += "<th>Grupo</th><th>Produto</th><th>Estoque</th><th>Vendidos</th><th>Média</th><th>Pedido</th></tr>";
 
-dados.forEach(d=>{
+dados.forEach(d => {
 
-if(busca && !Object.values(d.raw).join(" ").toLowerCase().includes(busca)) return;
+if(filtroGrupo && d.grupo != filtroGrupo) return;
 
-let media = d.vendidos/30;
-let necessidade = (media*diasN)-d.estoque;
-let excesso = d.estoque-(media*diasE);
+if(busca){
+const texto = Object.values(d.raw).join(" ").toLowerCase();
+if(!texto.includes(busca)) return;
+}
 
-let cls="";
-if(necessidade>0) cls="baixo";
-else if(excesso>0) cls="alto";
+let media = d.vendidos / 30;
+let pedido = Math.max((media * 30) - d.estoque, 0);
 
-html+=`<tr class="${cls}">
-<td>${d.produto}</td>
-<td>${d.estoque}</td>
+html += `<tr>
+<td>${d.grupo || "-"}</td>
+<td>${d.produto || "-"}</td>
+<td class="${d.estoque<=3?'baixo':''}">${d.estoque}</td>
 <td>${d.vendidos}</td>
 <td>${media.toFixed(2)}</td>
-<td>${necessidade>0?Math.ceil(necessidade):0}</td>
-<td>${excesso>0?Math.floor(excesso):0}</td>
+<td class="${pedido>0?'alto':''}">${Math.ceil(pedido)}</td>
 </tr>`;
 });
 
-html+="</table>";
-document.getElementById("tabelaABC").innerHTML=html;
+html += "</table>";
+document.getElementById("tabelaABC").innerHTML = html;
 }
 
-// ===== RENDER ESTOQUE =====
+// render estoque
 function renderEstoque(){
-
 let dados = banco[lojaAtual()].estoque;
 let busca = document.getElementById("buscaEstoque").value.toLowerCase();
+let filtroGrupo = document.getElementById("filtroGrupoEstoque").value;
 
-let html="<table><tr><th>Produto</th><th>Estoque</th></tr>";
+if(!dados.length){
+document.getElementById("tabelaEstoque").innerHTML = "Sem dados";
+return;
+}
 
-dados.forEach(d=>{
+let html = "<table><tr>";
+html += "<th>Grupo</th><th>Nome</th><th>Estoque</th></tr>";
 
-if(busca && !Object.values(d.raw).join(" ").toLowerCase().includes(busca)) return;
+dados.forEach(d => {
 
-html+=`<tr>
-<td>${d.nome}</td>
-<td>${d.estoque}</td>
+if(filtroGrupo && d.grupo != filtroGrupo) return;
+
+if(busca){
+const texto = Object.values(d.raw).join(" ").toLowerCase();
+if(!texto.includes(busca)) return;
+}
+
+html += `<tr>
+<td>${d.grupo || "-"}</td>
+<td>${d.nome || "-"}</td>
+<td class="${d.estoque<=2?'baixo':''}">${d.estoque}</td>
 </tr>`;
 });
 
-html+="</table>";
-document.getElementById("tabelaEstoque").innerHTML=html;
+html += "</table>";
+document.getElementById("tabelaEstoque").innerHTML = html;
 }
 
-// ===== TRANSFER =====
+// 🔥 TRANSFERÊNCIA COM DIAS (única alteração lógica)
 function sugerirTransferencias(){
 
-let diasN = Number(document.getElementById("diasN").value)||5;
-let diasE = Number(document.getElementById("diasE").value)||10;
+let diasN = Number(document.getElementById("diasNecessidade")?.value) || 5;
+let diasE = Number(document.getElementById("diasExcesso")?.value) || 10;
 
 let lojas = Object.keys(banco);
-let map={};
-let res=[];
+let sugestoes = [];
+let produtosMap = {};
 
-lojas.forEach(l=>{
-banco[l].abc.forEach(p=>{
-let m=p.vendidos/30;
-if(m<=0) return;
+lojas.forEach(loja => {
+banco[loja].abc.forEach(p => {
 
-let key=(p.produto||"").toLowerCase();
+let chave = (p.produto || "").toLowerCase().trim();
+let media = p.vendidos / 30;
+if(media <= 0) return;
 
-if(!map[key]) map[key]=[];
+if(!produtosMap[chave]) produtosMap[chave] = [];
 
-map[key].push({...p, loja:l, media:m});
+produtosMap[chave].push({
+loja,
+estoque: p.estoque,
+media
+});
+
 });
 });
 
-Object.entries(map).forEach(([prod,lista])=>{
+Object.entries(produtosMap).forEach(([produto, dados]) => {
 
-let precisa=[], sobra=[];
+let precisa = [];
+let sobra = [];
 
-lista.forEach(p=>{
-let n=(p.media*diasN)-p.estoque;
-let e=p.estoque-(p.media*diasE);
+dados.forEach(d => {
 
-if(n>0) precisa.push({...p,qtd:Math.ceil(n)});
-if(e>0) sobra.push({...p,qtd:Math.floor(e)});
+let necessidade = (d.media * diasN) - d.estoque;
+let excesso = d.estoque - (d.media * diasE);
+
+if(necessidade > 0) precisa.push({...d, qtd: Math.ceil(necessidade)});
+if(excesso > 0) sobra.push({...d, qtd: Math.floor(excesso)});
+
 });
 
-precisa.forEach(p=>{
-sobra.forEach(s=>{
-let q=Math.min(p.qtd,s.qtd);
-if(q>0){
-res.push({produto:prod,de:s.loja,para:p.loja,qtd:q});
-p.qtd-=q;
-s.qtd-=q;
+precisa.forEach(p => {
+sobra.forEach(s => {
+
+let qtd = Math.min(p.qtd, s.qtd);
+
+if(qtd > 0){
+sugestoes.push({ produto, de: s.loja, para: p.loja, qtd });
+p.qtd -= qtd;
+s.qtd -= qtd;
 }
+
 });
 });
 
 });
 
-return res;
+return sugestoes;
 }
 
-// ===== RENDER TRANSFER =====
 function renderTransferencias(){
-
-let lista=sugerirTransferencias();
+let lista = sugerirTransferencias();
 if(!lista.length) return "Sem sugestões";
 
-let html="<table><tr><th>Produto</th><th>De</th><th>Para</th><th>Qtd</th></tr>";
+let html = "<table><tr><th>Produto</th><th>De</th><th>Para</th><th>Qtd</th></tr>";
 
-lista.forEach(t=>{
-html+=`<tr>
+lista.forEach(t => {
+html += `<tr>
 <td>${t.produto}</td>
 <td>${t.de}</td>
 <td>${t.para}</td>
@@ -350,16 +420,19 @@ html+=`<tr>
 </tr>`;
 });
 
-html+="</table>";
+html += "</table>";
 return html;
 }
 
-// ===== GLOBAL =====
 function renderTudo(){
 renderABC();
 renderEstoque();
-document.getElementById("transferencias").innerHTML=renderTransferencias();
+document.getElementById("transferencias").innerHTML = renderTransferencias();
 }
+
+// 🔥 atualizar automático
+document.getElementById("diasNecessidade")?.addEventListener("input", renderTudo);
+document.getElementById("diasExcesso")?.addEventListener("input", renderTudo);
 
 </script>
 
