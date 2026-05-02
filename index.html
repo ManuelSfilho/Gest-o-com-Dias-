@@ -2,94 +2,99 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Painel Inteligente de Lojas</title>
+<title>Painel de Lojas</title>
 
+<link rel="icon" type="image/png" href="logo.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
 body{
-  background:#1f1f1f;
-  color:#fff;
+  background:#a7a5a5;
+  color:#f1f1f1;
   font-family:Arial;
-  padding:10px;
+  padding:20px;
 }
 
-h2{
+.titulo{
   text-align:center;
+  color:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:12px;
+  margin-bottom:20px;
+  font-weight:900;
+}
+
+.logo{
+  width:110px;
+  height:110px;
+  object-fit:contain;
+  border-radius:16px;
 }
 
 .topo{
   display:flex;
-  gap:10px;
+  gap:20px;
   flex-wrap:wrap;
-  justify-content:center;
+  margin-bottom:20px;
 }
 
-.card{
-  background:#2b2b2b;
-  padding:12px;
+.card,.cardestoque{
+  background:#3a3a3a;
+  padding:15px;
   border-radius:10px;
   border:2px solid #ff5252;
-  flex:1 1 220px;
+  box-shadow:0 0 10px rgba(255,82,82,0.2);
+  text-align:center;
 }
 
 input, select{
-  padding:6px;
+  padding:8px;
   border-radius:6px;
-  border:none;
-  width:100%;
-  margin-top:5px;
+  border:1px solid #666;
+  background:#666464;
+  color:#fff;
 }
 
 .container{
   display:flex;
-  gap:10px;
-  flex-wrap:wrap;
+  gap:20px;
 }
 
-.box{
-  flex:1 1 300px;
-  background:#2b2b2b;
-  padding:10px;
+.tabela-box{
+  flex:1;
+  background:#3a3a3a;
+  padding:15px;
   border-radius:10px;
   border:2px solid #ff5252;
   overflow:auto;
 }
 
-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:12px;
-}
-
 th{
   background:#ff5252;
-  padding:6px;
+  padding:10px;
 }
 
 td{
-  padding:5px;
-  border-bottom:1px solid #444;
+  padding:8px;
+  border-bottom:1px solid #555;
+  font-weight:bold;
 }
 
-.falta{ background:#b71c1c; }
-.ok{ background:#1b5e20; }
-.excesso{ background:#e65100; }
-
-.transfer{ background:#1565c0; }
+.baixo{ background:#ff5252; }
+.alto{ background:#4caf50; }
 
 </style>
 </head>
 
 <body>
 
-<h2>Painel Inteligente de Transferência</h2>
-
 <div class="topo">
 
 <div class="card">
-Loja:
-<select id="loja" onchange="render()">
+<b>Loja</b><br><br>
+<select id="lojaSelecionada" onchange="renderTudo()">
 <option>Agulhas Negras</option>
 <option>Pedra</option>
 <option>Vargem Grande</option>
@@ -98,66 +103,59 @@ Loja:
 </div>
 
 <div class="card">
-ABC:
+<b>ABC</b><br><br>
 <input type="file" onchange="carregarABC(event)">
 </div>
 
-<div class="card">
-Estoque:
+<div class="cardestoque">
+<b>Estoque</b><br><br>
 <input type="file" onchange="carregarEstoque(event)">
 </div>
 
 <div class="card">
-Busca:
-<input type="text" id="busca" oninput="render()">
-</div>
-
-<div class="card">
-Grupo:
-<input type="text" id="filtroGrupo" oninput="render()">
-</div>
-
-<div class="card">
-Dias necessidade:
-<input type="number" id="diasN" value="7" oninput="render()">
-</div>
-
-<div class="card">
-Dias excesso:
-<input type="number" id="diasE" value="14" oninput="render()">
+<b>Dias</b><br><br>
+Necessidade:
+<input type="number" id="diasN" value="5" oninput="renderTudo()">
+<br><br>
+Excesso:
+<input type="number" id="diasE" value="10" oninput="renderTudo()">
 </div>
 
 </div>
 
 <div class="container">
 
-<div class="box">
+<div class="tabela-box">
 <h3>ABC</h3>
-<div id="abc"></div>
+<input id="buscaABC" onkeyup="renderABC()" placeholder="Buscar">
+<div id="tabelaABC"></div>
 </div>
 
-<div class="box">
+<div class="tabela-box">
 <h3>Estoque</h3>
-<div id="estoque"></div>
+<input id="buscaEstoque" onkeyup="renderEstoque()" placeholder="Buscar">
+<div id="tabelaEstoque"></div>
 </div>
 
 </div>
 
-<div class="box">
+<div class="tabela-box">
 <h3>Transferências</h3>
-<div id="transf"></div>
+<div id="transferencias"></div>
 </div>
 
 <script>
 
 let banco = {
-"Agulhas Negras": {abc:[], estoque:[]},
-"Pedra": {abc:[], estoque:[]},
-"Vargem Grande": {abc:[], estoque:[]},
-"Ilha de Guaratiba": {abc:[], estoque:[]}
+"Agulhas Negras": {abc: [], estoque: []},
+"Pedra": {abc: [], estoque: []},
+"Vargem Grande": {abc: [], estoque: []},
+"Ilha de Guaratiba": {abc: [], estoque: []}
 };
 
-function loja(){ return document.getElementById("loja").value }
+function lojaAtual(){
+  return document.getElementById("lojaSelecionada").value;
+}
 
 function acharColuna(obj, nomes){
   return Object.keys(obj).find(k =>
@@ -165,16 +163,14 @@ function acharColuna(obj, nomes){
   );
 }
 
-// ===== LOAD =====
+// ===== ABC =====
 function carregarABC(e){
-let f = e.target.files[0];
-let r = new FileReader();
+const r = new FileReader();
 
 r.onload = ev=>{
 let wb = XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
 let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-
-if(!dados.length) return alert("ABC vazio");
+if(!dados.length) return;
 
 let ex = dados[0];
 
@@ -184,28 +180,28 @@ let cEst = acharColuna(ex,["estoque"]);
 let cVend = acharColuna(ex,["vend","qtd"]);
 
 dados = dados.map(l=>({
-grupo:l[cGrupo]||"",
-produto:(l[cProd]||"").toLowerCase(),
+grupo:l[cGrupo],
+produto:l[cProd],
 estoque:Number(l[cEst])||0,
-vendidos:Number(l[cVend])||0
+vendidos:Number(l[cVend])||0,
+raw:l
 }));
 
-banco[loja()].abc = dados;
-render();
+banco[lojaAtual()].abc = dados;
+renderTudo();
 };
 
-r.readAsArrayBuffer(f);
+r.readAsArrayBuffer(e.target.files[0]);
 }
 
+// ===== ESTOQUE =====
 function carregarEstoque(e){
-let f = e.target.files[0];
-let r = new FileReader();
+const r = new FileReader();
 
 r.onload = ev=>{
 let wb = XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
 let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-
-if(!dados.length) return alert("Estoque vazio");
+if(!dados.length) return;
 
 let ex = dados[0];
 
@@ -214,105 +210,108 @@ let cNome = acharColuna(ex,["nome","descr"]);
 let cEst = acharColuna(ex,["estoque"]);
 
 dados = dados.map(l=>({
-grupo:l[cGrupo]||"",
-nome:(l[cNome]||"").toLowerCase(),
-estoque:Number(l[cEst])||0
+grupo:l[cGrupo],
+nome:l[cNome],
+estoque:Number(l[cEst])||0,
+raw:l
 }));
 
-banco[loja()].estoque = dados;
-render();
+banco[lojaAtual()].estoque = dados;
+renderTudo();
 };
 
-r.readAsArrayBuffer(f);
-}
-
-// ===== COR =====
-function cor(estoque, media){
-let diasN = Number(document.getElementById("diasN").value);
-let diasE = Number(document.getElementById("diasE").value);
-
-let min = media * diasN;
-let max = media * diasE;
-
-if(estoque < min) return "falta";
-if(estoque > max) return "excesso";
-return "ok";
-}
-
-// ===== FILTRO =====
-function filtro(p){
-let busca = document.getElementById("busca").value.toLowerCase();
-let grupo = document.getElementById("filtroGrupo").value.toLowerCase();
-
-return (!busca || p.produto.includes(busca)) &&
-       (!grupo || (p.grupo||"").toLowerCase().includes(grupo));
+r.readAsArrayBuffer(e.target.files[0]);
 }
 
 // ===== RENDER ABC =====
 function renderABC(){
-let dados = banco[loja()].abc.filter(filtro);
 
-let html="<table><tr><th>Produto</th><th>Estoque</th><th>Vendidos</th><th>Média/dia</th></tr>";
+let dados = banco[lojaAtual()].abc;
+let busca = document.getElementById("buscaABC").value.toLowerCase();
 
-dados.forEach(p=>{
-let media = p.vendidos/30;
-let classe = cor(p.estoque, media);
+let diasN = Number(document.getElementById("diasN").value)||5;
+let diasE = Number(document.getElementById("diasE").value)||10;
 
-html+=`<tr class="${classe}">
-<td>${p.produto}</td>
-<td>${p.estoque}</td>
-<td>${p.vendidos}</td>
+let html="<table><tr><th>Produto</th><th>Estoque</th><th>Vendidos</th><th>Média</th><th>Necessidade</th><th>Excesso</th></tr>";
+
+dados.forEach(d=>{
+
+if(busca && !Object.values(d.raw).join(" ").toLowerCase().includes(busca)) return;
+
+let media = d.vendidos/30;
+let necessidade = (media*diasN)-d.estoque;
+let excesso = d.estoque-(media*diasE);
+
+let cls="";
+if(necessidade>0) cls="baixo";
+else if(excesso>0) cls="alto";
+
+html+=`<tr class="${cls}">
+<td>${d.produto}</td>
+<td>${d.estoque}</td>
+<td>${d.vendidos}</td>
 <td>${media.toFixed(2)}</td>
+<td>${necessidade>0?Math.ceil(necessidade):0}</td>
+<td>${excesso>0?Math.floor(excesso):0}</td>
 </tr>`;
 });
 
-return html+"</table>";
+html+="</table>";
+document.getElementById("tabelaABC").innerHTML=html;
 }
 
 // ===== RENDER ESTOQUE =====
 function renderEstoque(){
-let dados = banco[loja()].estoque;
+
+let dados = banco[lojaAtual()].estoque;
+let busca = document.getElementById("buscaEstoque").value.toLowerCase();
 
 let html="<table><tr><th>Produto</th><th>Estoque</th></tr>";
 
-dados.forEach(p=>{
+dados.forEach(d=>{
+
+if(busca && !Object.values(d.raw).join(" ").toLowerCase().includes(busca)) return;
+
 html+=`<tr>
-<td>${p.nome}</td>
-<td>${p.estoque}</td>
+<td>${d.nome}</td>
+<td>${d.estoque}</td>
 </tr>`;
 });
 
-return html+"</table>";
+html+="</table>";
+document.getElementById("tabelaEstoque").innerHTML=html;
 }
 
 // ===== TRANSFER =====
-function transferencias(){
+function sugerirTransferencias(){
+
+let diasN = Number(document.getElementById("diasN").value)||5;
+let diasE = Number(document.getElementById("diasE").value)||10;
 
 let lojas = Object.keys(banco);
 let map={};
+let res=[];
 
 lojas.forEach(l=>{
 banco[l].abc.forEach(p=>{
-if(!p.produto) return;
-
 let m=p.vendidos/30;
 if(m<=0) return;
 
-if(!map[p.produto]) map[p.produto]=[];
+let key=(p.produto||"").toLowerCase();
 
-map[p.produto].push({...p, loja:l, media:m});
+if(!map[key]) map[key]=[];
+
+map[key].push({...p, loja:l, media:m});
 });
 });
 
-let res=[];
-
-Object.values(map).forEach(lista=>{
+Object.entries(map).forEach(([prod,lista])=>{
 
 let precisa=[], sobra=[];
 
 lista.forEach(p=>{
-let n = p.media * document.getElementById("diasN").value - p.estoque;
-let e = p.estoque - p.media * document.getElementById("diasE").value;
+let n=(p.media*diasN)-p.estoque;
+let e=p.estoque-(p.media*diasE);
 
 if(n>0) precisa.push({...p,qtd:Math.ceil(n)});
 if(e>0) sobra.push({...p,qtd:Math.floor(e)});
@@ -322,7 +321,7 @@ precisa.forEach(p=>{
 sobra.forEach(s=>{
 let q=Math.min(p.qtd,s.qtd);
 if(q>0){
-res.push({produto:p.produto,de:s.loja,para:p.loja,qtd:q});
+res.push({produto:prod,de:s.loja,para:p.loja,qtd:q});
 p.qtd-=q;
 s.qtd-=q;
 }
@@ -335,14 +334,15 @@ return res;
 }
 
 // ===== RENDER TRANSFER =====
-function renderTransf(){
-let lista = transferencias();
-if(!lista.length) return "Sem transferência";
+function renderTransferencias(){
+
+let lista=sugerirTransferencias();
+if(!lista.length) return "Sem sugestões";
 
 let html="<table><tr><th>Produto</th><th>De</th><th>Para</th><th>Qtd</th></tr>";
 
 lista.forEach(t=>{
-html+=`<tr class="transfer">
+html+=`<tr>
 <td>${t.produto}</td>
 <td>${t.de}</td>
 <td>${t.para}</td>
@@ -350,14 +350,15 @@ html+=`<tr class="transfer">
 </tr>`;
 });
 
-return html+"</table>";
+html+="</table>";
+return html;
 }
 
-// ===== RENDER GERAL =====
-function render(){
-document.getElementById("abc").innerHTML = renderABC();
-document.getElementById("estoque").innerHTML = renderEstoque();
-document.getElementById("transf").innerHTML = renderTransf();
+// ===== GLOBAL =====
+function renderTudo(){
+renderABC();
+renderEstoque();
+document.getElementById("transferencias").innerHTML=renderTransferencias();
 }
 
 </script>
