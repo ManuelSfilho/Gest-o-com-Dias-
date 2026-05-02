@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Painel de Lojas</title>
+
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+body{
+  background:#a7a5a5;
+  color:#f1f1f1;
+  font-family:Arial;
+  padding:10px;
+}
+
+.titulo{
+  text-align:center;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:12px;
+  margin-bottom:20px;
+  font-weight:900;
+  flex-wrap:wrap;
+}
+
+.logo{
+  width:80px;
+  height:80px;
+  border-radius:16px;
+}
+
+.topo{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+.card,.cardestoque{
+  background:#3a3a3a;
+  padding:12px;
+  border-radius:10px;
+  border:2px solid #ff5252;
+  flex:1 1 250px;
+  max-width:300px;
+}
+
+input, select{
+  padding:8px;
+  border-radius:6px;
+  border:1px solid #666;
+  background:#666464;
+  color:#fff;
+  width:100%;
+}
+
+.container{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.tabela-box{
+  flex:1 1 300px;
+  background:#3a3a3a;
+  padding:10px;
+  border-radius:10px;
+  border:2px solid #ff5252;
+  overflow:auto;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+}
+
+th{
+  background:#ff5252;
+  padding:8px;
+}
+
+td{
+  padding:6px;
+  border-bottom:1px solid #555;
+  font-size:12px;
+}
+
+.baixo{background:#ff5252;}
+.alto{background:#4caf50;}
+
+@media(max-width:600px){
+  .card,.cardestoque,.tabela-box{
+    flex:1 1 100%;
+    max-width:100%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="topo">
+
+<div class="card">
+<b>Selecionar Loja</b><br><br>
+<select id="lojaSelecionada" onchange="renderTudo()">
+<option>Agulhas Negras</option>
+<option>Pedra</option>
+<option>Vargem Grande</option>
+<option>Ilha de Guaratiba</option>
+</select>
+</div>
+
+<div class="card">
+<b>Produtos ABC</b><br><br>
+<input type="file" onchange="carregarABC(event)">
+</div>
+
+<div class="cardestoque">
+<b>Posição do Estoque</b><br><br>
+<input type="file" onchange="carregarEstoque(event)">
+</div>
+
+<!-- NOVO CONTROLE -->
+<div class="card">
+<b>Dias de Cobertura</b><br><br>
+
+<label>Necessidade:</label>
+<input type="number" id="diasNecessidade" value="7">
+
+<br><br>
+
+<label>Excesso:</label>
+<input type="number" id="diasExcesso" value="14">
+</div>
+
+</div>
+
+<div class="container">
+
+<div class="tabela-box">
+<h3>Produtos ABC</h3>
+<div id="tabelaABC"></div>
+</div>
+
+<div class="tabela-box">
+<h3>Estoque</h3>
+<div id="tabelaEstoque"></div>
+</div>
+
+</div>
+
+<div class="tabela-box">
+<h3>Transferências</h3>
+<div id="transferencias"></div>
+</div>
+
+<script>
+
+let banco = {
+"Agulhas Negras": {abc: [], estoque: []},
+"Pedra": {abc: [], estoque: []},
+"Vargem Grande": {abc: [], estoque: []},
+"Ilha de Guaratiba": {abc: [], estoque: []}
+};
+
+function lojaAtual(){
+return document.getElementById("lojaSelecionada").value;
+}
+
+function acharColuna(obj, nomes){
+return Object.keys(obj).find(k =>
+nomes.some(n => k.toLowerCase().includes(n))
+);
+}
+
+// ===== ABC =====
+function carregarABC(e){
+const reader = new FileReader();
+
+reader.onload = function(e){
+const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+const exemplo = dados[0];
+
+const colGrupo = acharColuna(exemplo, ["grupo"]);
+const colDesc = acharColuna(exemplo, ["descr","produto","nome"]);
+const colEstoque = acharColuna(exemplo, ["estoque"]);
+const colVendido = acharColuna(exemplo, ["vend","qtd"]);
+
+dados = dados.map(l => ({
+grupo: l[colGrupo],
+produto: l[colDesc],
+estoque: Number(l[colEstoque]) || 0,
+vendidos: Number(l[colVendido]) || 0
+}));
+
+banco[lojaAtual()].abc = dados;
+renderTudo();
+};
+
+reader.readAsArrayBuffer(e.target.files[0]);
+}
+
+// ===== ESTOQUE =====
+function carregarEstoque(e){
+const reader = new FileReader();
+
+reader.onload = function(e){
+const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+const exemplo = dados[0];
+
+const colGrupo = acharColuna(exemplo, ["grupo"]);
+const colNome = acharColuna(exemplo, ["nome","descr"]);
+const colEstoque = acharColuna(exemplo, ["estoque"]);
+
+dados = dados.map(l => ({
+grupo: l[colGrupo],
+nome: l[colNome],
+estoque: Number(l[colEstoque]) || 0
+}));
+
+banco[lojaAtual()].estoque = dados;
+renderTudo();
+};
+
+reader.readAsArrayBuffer(e.target.files[0]);
+}
+
+// ===== TRANSFERÊNCIA =====
+function sugerirTransferencias(){
+
+let diasNecessidade = Number(document.getElementById("diasNecessidade").value) || 7;
+let diasExcesso = Number(document.getElementById("diasExcesso").value) || 14;
+
+// proteção
+if(diasExcesso <= diasNecessidade){
+diasExcesso = diasNecessidade + 3;
+}
+
+let lojas = Object.keys(banco);
+let sugestoes = [];
+let produtosMap = {};
+
+lojas.forEach(loja => {
+banco[loja].abc.forEach(p => {
+
+let chave = (p.produto || "").toLowerCase();
+
+let media = p.vendidos / 30;
+if(media <= 0) return;
+
+if(!produtosMap[chave]) produtosMap[chave] = [];
+
+produtosMap[chave].push({
+loja,
+estoque: p.estoque,
+media
+});
+});
+});
+
+Object.values(produtosMap).forEach(dados => {
+
+let precisa = [];
+let sobra = [];
+
+dados.forEach(d => {
+
+let necessidade = (d.media * diasNecessidade) - d.estoque;
+let excesso = d.estoque - (d.media * diasExcesso);
+
+if(necessidade > 0) precisa.push({...d, qtd: Math.ceil(necessidade)});
+if(excesso > 0) sobra.push({...d, qtd: Math.floor(excesso)});
+});
+
+precisa.forEach(p => {
+sobra.forEach(s => {
+
+let qtd = Math.min(p.qtd, s.qtd);
+
+if(qtd > 0){
+sugestoes.push({
+produto: p.loja,
+de: s.loja,
+para: p.loja,
+qtd
+});
+
+p.qtd -= qtd;
+s.qtd -= qtd;
+}
+});
+});
+});
+
+return sugestoes;
+}
+
+// ===== RENDER =====
+function renderTransferencias(){
+let lista = sugerirTransferencias();
+
+if(!lista.length) return "Sem sugestões";
+
+let html = "<table><tr><th>De</th><th>Para</th><th>Qtd</th></tr>";
+
+lista.forEach(t => {
+html += `<tr>
+<td>${t.de}</td>
+<td>${t.para}</td>
+<td>${t.qtd}</td>
+</tr>`;
+});
+
+html += "</table>";
+
+return html;
+}
+
+function renderTudo(){
+document.getElementById("transferencias").innerHTML = renderTransferencias();
+}
+
+// atualização automática
+document.getElementById("diasNecessidade").addEventListener("input", renderTudo);
+document.getElementById("diasExcesso").addEventListener("input", renderTudo);
+
+</script>
+
+</body>
+</html>
