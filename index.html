@@ -89,6 +89,8 @@ td{
 
 <body>
 
+<h2 class="titulo">Painel de Transferência entre Lojas</h2>
+
 <div class="topo">
 
 <div class="card">
@@ -154,169 +156,223 @@ let banco = {
 };
 
 function lojaAtual(){
-return document.getElementById("lojaSelecionada").value;
+  return document.getElementById("lojaSelecionada").value;
 }
 
 function acharColuna(obj, nomes){
-return Object.keys(obj).find(k =>
-nomes.some(n => k.toLowerCase().includes(n))
-);
+  return Object.keys(obj).find(k =>
+    nomes.some(n => k.toLowerCase().includes(n.toLowerCase()))
+  );
 }
 
 // ===== ABC =====
 function carregarABC(e){
-const reader = new FileReader();
+  const file = e.target.files[0];
+  if(!file) return alert("Selecione um arquivo ABC");
 
-reader.onload = function(e){
-const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+  const reader = new FileReader();
 
-const exemplo = dados[0];
+  reader.onload = function(e){
+    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+    let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 
-const colGrupo = acharColuna(exemplo, ["grupo"]);
-const colDesc = acharColuna(exemplo, ["descr","produto","nome"]);
-const colEstoque = acharColuna(exemplo, ["estoque"]);
-const colVendido = acharColuna(exemplo, ["vend","qtd"]);
+    if(!dados.length) return alert("Arquivo ABC vazio");
 
-dados = dados.map(l => ({
-grupo: l[colGrupo],
-produto: (l[colDesc] || "").toString().trim().toLowerCase(),
-estoque: Number(l[colEstoque]) || 0,
-vendidos: Number(l[colVendido]) || 0
-}));
+    const exemplo = dados[0];
 
-banco[lojaAtual()].abc = dados;
-renderTudo();
-};
+    const colGrupo = acharColuna(exemplo, ["grupo"]);
+    const colDesc = acharColuna(exemplo, ["descr","produto","nome"]);
+    const colEstoque = acharColuna(exemplo, ["estoque"]);
+    const colVendido = acharColuna(exemplo, ["vend","qtd"]);
 
-reader.readAsArrayBuffer(e.target.files[0]);
+    if(!colDesc || !colEstoque){
+      console.log(exemplo);
+      return alert("Colunas não reconhecidas no ABC");
+    }
+
+    dados = dados.map(l => ({
+      grupo: l[colGrupo] || "",
+      produto: (l[colDesc] || "").toString().trim().toLowerCase(),
+      estoque: Number(l[colEstoque]) || 0,
+      vendidos: Number(l[colVendido]) || 0
+    }));
+
+    banco[lojaAtual()].abc = dados;
+    renderTudo();
+  };
+
+  reader.readAsArrayBuffer(file);
 }
 
 // ===== ESTOQUE =====
 function carregarEstoque(e){
-const reader = new FileReader();
+  const file = e.target.files[0];
+  if(!file) return alert("Selecione um arquivo de estoque");
 
-reader.onload = function(e){
-const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+  const reader = new FileReader();
 
-const exemplo = dados[0];
+  reader.onload = function(e){
+    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+    let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 
-const colGrupo = acharColuna(exemplo, ["grupo"]);
-const colNome = acharColuna(exemplo, ["nome","descr"]);
-const colEstoque = acharColuna(exemplo, ["estoque"]);
+    if(!dados.length) return alert("Arquivo de estoque vazio");
 
-dados = dados.map(l => ({
-grupo: l[colGrupo],
-nome: (l[colNome] || "").toString().trim().toLowerCase(),
-estoque: Number(l[colEstoque]) || 0
-}));
+    const exemplo = dados[0];
 
-banco[lojaAtual()].estoque = dados;
-renderTudo();
-};
+    const colGrupo = acharColuna(exemplo, ["grupo"]);
+    const colNome = acharColuna(exemplo, ["nome","descr"]);
+    const colEstoque = acharColuna(exemplo, ["estoque"]);
 
-reader.readAsArrayBuffer(e.target.files[0]);
+    if(!colNome || !colEstoque){
+      console.log(exemplo);
+      return alert("Colunas não reconhecidas no estoque");
+    }
+
+    dados = dados.map(l => ({
+      grupo: l[colGrupo] || "",
+      nome: (l[colNome] || "").toString().trim().toLowerCase(),
+      estoque: Number(l[colEstoque]) || 0
+    }));
+
+    banco[lojaAtual()].estoque = dados;
+    renderTudo();
+  };
+
+  reader.readAsArrayBuffer(file);
 }
 
 // ===== TRANSFERÊNCIA =====
 function sugerirTransferencias(){
 
-let diasNecessidade = Number(document.getElementById("diasNecessidade").value) || 7;
-let diasExcesso = Number(document.getElementById("diasExcesso").value) || 14;
+  let diasNecessidade = Number(document.getElementById("diasNecessidade").value) || 7;
+  let diasExcesso = Number(document.getElementById("diasExcesso").value) || 14;
 
-if(diasExcesso <= diasNecessidade){
-diasExcesso = diasNecessidade + 3;
-}
+  if(diasExcesso <= diasNecessidade){
+    diasExcesso = diasNecessidade + 3;
+  }
 
-let lojas = Object.keys(banco);
-let sugestoes = [];
-let produtosMap = {};
+  let lojas = Object.keys(banco);
+  let sugestoes = [];
+  let produtosMap = {};
 
-lojas.forEach(loja => {
-banco[loja].abc.forEach(p => {
+  lojas.forEach(loja => {
+    banco[loja].abc.forEach(p => {
 
-let chave = p.produto;
-if(!chave) return;
+      if(!p.produto) return;
 
-let media = p.vendidos / 30;
-if(media <= 0) return;
+      let media = p.vendidos / 30;
+      if(media <= 0) return;
 
-if(!produtosMap[chave]) produtosMap[chave] = [];
+      if(!produtosMap[p.produto]) produtosMap[p.produto] = [];
 
-produtosMap[chave].push({
-produto: chave,
-loja,
-estoque: p.estoque,
-media
-});
-});
-});
+      produtosMap[p.produto].push({
+        produto: p.produto,
+        loja,
+        estoque: p.estoque,
+        media
+      });
+    });
+  });
 
-Object.values(produtosMap).forEach(dados => {
+  Object.values(produtosMap).forEach(dados => {
 
-let precisa = [];
-let sobra = [];
+    let precisa = [];
+    let sobra = [];
 
-dados.forEach(d => {
+    dados.forEach(d => {
+      let necessidade = (d.media * diasNecessidade) - d.estoque;
+      let excesso = d.estoque - (d.media * diasExcesso);
 
-let necessidade = (d.media * diasNecessidade) - d.estoque;
-let excesso = d.estoque - (d.media * diasExcesso);
+      if(necessidade > 0) precisa.push({...d, qtd: Math.ceil(necessidade)});
+      if(excesso > 0) sobra.push({...d, qtd: Math.floor(excesso)});
+    });
 
-if(necessidade > 0) precisa.push({...d, qtd: Math.ceil(necessidade)});
-if(excesso > 0) sobra.push({...d, qtd: Math.floor(excesso)});
-});
+    precisa.forEach(p => {
+      sobra.forEach(s => {
 
-precisa.forEach(p => {
-sobra.forEach(s => {
+        let qtd = Math.min(p.qtd, s.qtd);
 
-let qtd = Math.min(p.qtd, s.qtd);
+        if(qtd > 0){
+          sugestoes.push({
+            produto: p.produto,
+            de: s.loja,
+            para: p.loja,
+            qtd
+          });
 
-if(qtd > 0){
-sugestoes.push({
-produto: p.produto,
-de: s.loja,
-para: p.loja,
-qtd
-});
+          p.qtd -= qtd;
+          s.qtd -= qtd;
+        }
+      });
+    });
 
-p.qtd -= qtd;
-s.qtd -= qtd;
-}
-});
-});
-});
+  });
 
-return sugestoes;
+  return sugestoes;
 }
 
 // ===== RENDER =====
+function renderABC(){
+  let dados = banco[lojaAtual()].abc;
+  if(!dados.length) return "Sem dados";
+
+  let html = "<table><tr><th>Produto</th><th>Estoque</th><th>Vendidos</th></tr>";
+
+  dados.forEach(p=>{
+    html += `<tr>
+      <td>${p.produto}</td>
+      <td>${p.estoque}</td>
+      <td>${p.vendidos}</td>
+    </tr>`;
+  });
+
+  html += "</table>";
+  return html;
+}
+
+function renderEstoque(){
+  let dados = banco[lojaAtual()].estoque;
+  if(!dados.length) return "Sem dados";
+
+  let html = "<table><tr><th>Produto</th><th>Estoque</th></tr>";
+
+  dados.forEach(p=>{
+    html += `<tr>
+      <td>${p.nome}</td>
+      <td>${p.estoque}</td>
+    </tr>`;
+  });
+
+  html += "</table>";
+  return html;
+}
+
 function renderTransferencias(){
-let lista = sugerirTransferencias();
+  let lista = sugerirTransferencias();
+  if(!lista.length) return "Sem sugestões";
 
-if(!lista.length) return "Sem sugestões";
+  let html = "<table><tr><th>Produto</th><th>De</th><th>Para</th><th>Qtd</th></tr>";
 
-let html = "<table><tr><th>Produto</th><th>De</th><th>Para</th><th>Qtd</th></tr>";
+  lista.forEach(t => {
+    html += `<tr>
+      <td>${t.produto}</td>
+      <td>${t.de}</td>
+      <td>${t.para}</td>
+      <td>${t.qtd}</td>
+    </tr>`;
+  });
 
-lista.forEach(t => {
-html += `<tr>
-<td>${t.produto}</td>
-<td>${t.de}</td>
-<td>${t.para}</td>
-<td>${t.qtd}</td>
-</tr>`;
-});
-
-html += "</table>";
-
-return html;
+  html += "</table>";
+  return html;
 }
 
 function renderTudo(){
-document.getElementById("transferencias").innerHTML = renderTransferencias();
+  document.getElementById("tabelaABC").innerHTML = renderABC();
+  document.getElementById("tabelaEstoque").innerHTML = renderEstoque();
+  document.getElementById("transferencias").innerHTML = renderTransferencias();
 }
 
-// atualizar automático
+// auto update
 document.getElementById("diasNecessidade").addEventListener("input", renderTudo);
 document.getElementById("diasExcesso").addEventListener("input", renderTudo);
 
