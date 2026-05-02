@@ -2,24 +2,20 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Painel de Lojas</title>
-
-<link rel="icon" type="image/png" href="logo.png">
+<title>Painel Inteligente de Lojas</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
 body{
-  background:#a7a5a5;
-  color:#f1f1f1;
+  background:#1f1f1f;
+  color:#fff;
   font-family:Arial;
   padding:10px;
 }
 
-.titulo{
+h2{
   text-align:center;
-  font-weight:900;
-  margin-bottom:20px;
 }
 
 .topo{
@@ -29,22 +25,20 @@ body{
   justify-content:center;
 }
 
-.card,.cardestoque{
-  background:#3a3a3a;
+.card{
+  background:#2b2b2b;
   padding:12px;
   border-radius:10px;
   border:2px solid #ff5252;
-  flex:1 1 250px;
-  max-width:300px;
+  flex:1 1 220px;
 }
 
 input, select{
-  padding:8px;
+  padding:6px;
   border-radius:6px;
-  border:1px solid #666;
-  background:#666464;
-  color:#fff;
+  border:none;
   width:100%;
+  margin-top:5px;
 }
 
 .container{
@@ -53,9 +47,9 @@ input, select{
   flex-wrap:wrap;
 }
 
-.tabela-box{
+.box{
   flex:1 1 300px;
-  background:#3a3a3a;
+  background:#2b2b2b;
   padding:10px;
   border-radius:10px;
   border:2px solid #ff5252;
@@ -65,37 +59,37 @@ input, select{
 table{
   width:100%;
   border-collapse:collapse;
-  font-size:13px;
+  font-size:12px;
 }
 
 th{
   background:#ff5252;
-  padding:8px;
+  padding:6px;
 }
 
 td{
-  padding:6px;
-  border-bottom:1px solid #555;
+  padding:5px;
+  border-bottom:1px solid #444;
 }
 
-@media(max-width:600px){
-  .card,.cardestoque,.tabela-box{
-    flex:1 1 100%;
-    max-width:100%;
-  }
-}
+.falta{ background:#b71c1c; }
+.ok{ background:#1b5e20; }
+.excesso{ background:#e65100; }
+
+.transfer{ background:#1565c0; }
+
 </style>
 </head>
 
 <body>
 
-<h2 class="titulo">Painel de Transferência entre Lojas</h2>
+<h2>Painel Inteligente de Transferência</h2>
 
 <div class="topo">
 
 <div class="card">
-<b>Selecionar Loja</b><br><br>
-<select id="lojaSelecionada" onchange="renderTudo()">
+Loja:
+<select id="loja" onchange="render()">
 <option>Agulhas Negras</option>
 <option>Pedra</option>
 <option>Vargem Grande</option>
@@ -104,277 +98,267 @@ td{
 </div>
 
 <div class="card">
-<b>Produtos ABC</b><br><br>
+ABC:
 <input type="file" onchange="carregarABC(event)">
 </div>
 
-<div class="cardestoque">
-<b>Posição do Estoque</b><br><br>
+<div class="card">
+Estoque:
 <input type="file" onchange="carregarEstoque(event)">
 </div>
 
 <div class="card">
-<b>Dias de Cobertura</b><br><br>
+Busca:
+<input type="text" id="busca" oninput="render()">
+</div>
 
-<label>Necessidade:</label>
-<input type="number" id="diasNecessidade" value="7">
+<div class="card">
+Grupo:
+<input type="text" id="filtroGrupo" oninput="render()">
+</div>
 
-<br><br>
+<div class="card">
+Dias necessidade:
+<input type="number" id="diasN" value="7" oninput="render()">
+</div>
 
-<label>Excesso:</label>
-<input type="number" id="diasExcesso" value="14">
+<div class="card">
+Dias excesso:
+<input type="number" id="diasE" value="14" oninput="render()">
 </div>
 
 </div>
 
 <div class="container">
 
-<div class="tabela-box">
-<h3>Produtos ABC</h3>
-<div id="tabelaABC"></div>
+<div class="box">
+<h3>ABC</h3>
+<div id="abc"></div>
 </div>
 
-<div class="tabela-box">
+<div class="box">
 <h3>Estoque</h3>
-<div id="tabelaEstoque"></div>
+<div id="estoque"></div>
 </div>
 
 </div>
 
-<div class="tabela-box">
+<div class="box">
 <h3>Transferências</h3>
-<div id="transferencias"></div>
+<div id="transf"></div>
 </div>
 
 <script>
 
 let banco = {
-"Agulhas Negras": {abc: [], estoque: []},
-"Pedra": {abc: [], estoque: []},
-"Vargem Grande": {abc: [], estoque: []},
-"Ilha de Guaratiba": {abc: [], estoque: []}
+"Agulhas Negras": {abc:[], estoque:[]},
+"Pedra": {abc:[], estoque:[]},
+"Vargem Grande": {abc:[], estoque:[]},
+"Ilha de Guaratiba": {abc:[], estoque:[]}
 };
 
-function lojaAtual(){
-  return document.getElementById("lojaSelecionada").value;
-}
+function loja(){ return document.getElementById("loja").value }
 
 function acharColuna(obj, nomes){
   return Object.keys(obj).find(k =>
-    nomes.some(n => k.toLowerCase().includes(n.toLowerCase()))
+    nomes.some(n => k.toLowerCase().includes(n))
   );
 }
 
-// ===== ABC =====
+// ===== LOAD =====
 function carregarABC(e){
-  const file = e.target.files[0];
-  if(!file) return alert("Selecione um arquivo ABC");
+let f = e.target.files[0];
+let r = new FileReader();
 
-  const reader = new FileReader();
+r.onload = ev=>{
+let wb = XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 
-  reader.onload = function(e){
-    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-    let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+if(!dados.length) return alert("ABC vazio");
 
-    if(!dados.length) return alert("Arquivo ABC vazio");
+let ex = dados[0];
 
-    const exemplo = dados[0];
+let cGrupo = acharColuna(ex,["grupo"]);
+let cProd = acharColuna(ex,["produto","descr","nome"]);
+let cEst = acharColuna(ex,["estoque"]);
+let cVend = acharColuna(ex,["vend","qtd"]);
 
-    const colGrupo = acharColuna(exemplo, ["grupo"]);
-    const colDesc = acharColuna(exemplo, ["descr","produto","nome"]);
-    const colEstoque = acharColuna(exemplo, ["estoque"]);
-    const colVendido = acharColuna(exemplo, ["vend","qtd"]);
+dados = dados.map(l=>({
+grupo:l[cGrupo]||"",
+produto:(l[cProd]||"").toLowerCase(),
+estoque:Number(l[cEst])||0,
+vendidos:Number(l[cVend])||0
+}));
 
-    if(!colDesc || !colEstoque){
-      console.log(exemplo);
-      return alert("Colunas não reconhecidas no ABC");
-    }
+banco[loja()].abc = dados;
+render();
+};
 
-    dados = dados.map(l => ({
-      grupo: l[colGrupo] || "",
-      produto: (l[colDesc] || "").toString().trim().toLowerCase(),
-      estoque: Number(l[colEstoque]) || 0,
-      vendidos: Number(l[colVendido]) || 0
-    }));
-
-    banco[lojaAtual()].abc = dados;
-    renderTudo();
-  };
-
-  reader.readAsArrayBuffer(file);
+r.readAsArrayBuffer(f);
 }
 
-// ===== ESTOQUE =====
 function carregarEstoque(e){
-  const file = e.target.files[0];
-  if(!file) return alert("Selecione um arquivo de estoque");
+let f = e.target.files[0];
+let r = new FileReader();
 
-  const reader = new FileReader();
+r.onload = ev=>{
+let wb = XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 
-  reader.onload = function(e){
-    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-    let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+if(!dados.length) return alert("Estoque vazio");
 
-    if(!dados.length) return alert("Arquivo de estoque vazio");
+let ex = dados[0];
 
-    const exemplo = dados[0];
+let cGrupo = acharColuna(ex,["grupo"]);
+let cNome = acharColuna(ex,["nome","descr"]);
+let cEst = acharColuna(ex,["estoque"]);
 
-    const colGrupo = acharColuna(exemplo, ["grupo"]);
-    const colNome = acharColuna(exemplo, ["nome","descr"]);
-    const colEstoque = acharColuna(exemplo, ["estoque"]);
+dados = dados.map(l=>({
+grupo:l[cGrupo]||"",
+nome:(l[cNome]||"").toLowerCase(),
+estoque:Number(l[cEst])||0
+}));
 
-    if(!colNome || !colEstoque){
-      console.log(exemplo);
-      return alert("Colunas não reconhecidas no estoque");
-    }
+banco[loja()].estoque = dados;
+render();
+};
 
-    dados = dados.map(l => ({
-      grupo: l[colGrupo] || "",
-      nome: (l[colNome] || "").toString().trim().toLowerCase(),
-      estoque: Number(l[colEstoque]) || 0
-    }));
-
-    banco[lojaAtual()].estoque = dados;
-    renderTudo();
-  };
-
-  reader.readAsArrayBuffer(file);
+r.readAsArrayBuffer(f);
 }
 
-// ===== TRANSFERÊNCIA =====
-function sugerirTransferencias(){
+// ===== COR =====
+function cor(estoque, media){
+let diasN = Number(document.getElementById("diasN").value);
+let diasE = Number(document.getElementById("diasE").value);
 
-  let diasNecessidade = Number(document.getElementById("diasNecessidade").value) || 7;
-  let diasExcesso = Number(document.getElementById("diasExcesso").value) || 14;
+let min = media * diasN;
+let max = media * diasE;
 
-  if(diasExcesso <= diasNecessidade){
-    diasExcesso = diasNecessidade + 3;
-  }
-
-  let lojas = Object.keys(banco);
-  let sugestoes = [];
-  let produtosMap = {};
-
-  lojas.forEach(loja => {
-    banco[loja].abc.forEach(p => {
-
-      if(!p.produto) return;
-
-      let media = p.vendidos / 30;
-      if(media <= 0) return;
-
-      if(!produtosMap[p.produto]) produtosMap[p.produto] = [];
-
-      produtosMap[p.produto].push({
-        produto: p.produto,
-        loja,
-        estoque: p.estoque,
-        media
-      });
-    });
-  });
-
-  Object.values(produtosMap).forEach(dados => {
-
-    let precisa = [];
-    let sobra = [];
-
-    dados.forEach(d => {
-      let necessidade = (d.media * diasNecessidade) - d.estoque;
-      let excesso = d.estoque - (d.media * diasExcesso);
-
-      if(necessidade > 0) precisa.push({...d, qtd: Math.ceil(necessidade)});
-      if(excesso > 0) sobra.push({...d, qtd: Math.floor(excesso)});
-    });
-
-    precisa.forEach(p => {
-      sobra.forEach(s => {
-
-        let qtd = Math.min(p.qtd, s.qtd);
-
-        if(qtd > 0){
-          sugestoes.push({
-            produto: p.produto,
-            de: s.loja,
-            para: p.loja,
-            qtd
-          });
-
-          p.qtd -= qtd;
-          s.qtd -= qtd;
-        }
-      });
-    });
-
-  });
-
-  return sugestoes;
+if(estoque < min) return "falta";
+if(estoque > max) return "excesso";
+return "ok";
 }
 
-// ===== RENDER =====
+// ===== FILTRO =====
+function filtro(p){
+let busca = document.getElementById("busca").value.toLowerCase();
+let grupo = document.getElementById("filtroGrupo").value.toLowerCase();
+
+return (!busca || p.produto.includes(busca)) &&
+       (!grupo || (p.grupo||"").toLowerCase().includes(grupo));
+}
+
+// ===== RENDER ABC =====
 function renderABC(){
-  let dados = banco[lojaAtual()].abc;
-  if(!dados.length) return "Sem dados";
+let dados = banco[loja()].abc.filter(filtro);
 
-  let html = "<table><tr><th>Produto</th><th>Estoque</th><th>Vendidos</th></tr>";
+let html="<table><tr><th>Produto</th><th>Estoque</th><th>Vendidos</th><th>Média/dia</th></tr>";
 
-  dados.forEach(p=>{
-    html += `<tr>
-      <td>${p.produto}</td>
-      <td>${p.estoque}</td>
-      <td>${p.vendidos}</td>
-    </tr>`;
-  });
+dados.forEach(p=>{
+let media = p.vendidos/30;
+let classe = cor(p.estoque, media);
 
-  html += "</table>";
-  return html;
+html+=`<tr class="${classe}">
+<td>${p.produto}</td>
+<td>${p.estoque}</td>
+<td>${p.vendidos}</td>
+<td>${media.toFixed(2)}</td>
+</tr>`;
+});
+
+return html+"</table>";
 }
 
+// ===== RENDER ESTOQUE =====
 function renderEstoque(){
-  let dados = banco[lojaAtual()].estoque;
-  if(!dados.length) return "Sem dados";
+let dados = banco[loja()].estoque;
 
-  let html = "<table><tr><th>Produto</th><th>Estoque</th></tr>";
+let html="<table><tr><th>Produto</th><th>Estoque</th></tr>";
 
-  dados.forEach(p=>{
-    html += `<tr>
-      <td>${p.nome}</td>
-      <td>${p.estoque}</td>
-    </tr>`;
-  });
+dados.forEach(p=>{
+html+=`<tr>
+<td>${p.nome}</td>
+<td>${p.estoque}</td>
+</tr>`;
+});
 
-  html += "</table>";
-  return html;
+return html+"</table>";
 }
 
-function renderTransferencias(){
-  let lista = sugerirTransferencias();
-  if(!lista.length) return "Sem sugestões";
+// ===== TRANSFER =====
+function transferencias(){
 
-  let html = "<table><tr><th>Produto</th><th>De</th><th>Para</th><th>Qtd</th></tr>";
+let lojas = Object.keys(banco);
+let map={};
 
-  lista.forEach(t => {
-    html += `<tr>
-      <td>${t.produto}</td>
-      <td>${t.de}</td>
-      <td>${t.para}</td>
-      <td>${t.qtd}</td>
-    </tr>`;
-  });
+lojas.forEach(l=>{
+banco[l].abc.forEach(p=>{
+if(!p.produto) return;
 
-  html += "</table>";
-  return html;
+let m=p.vendidos/30;
+if(m<=0) return;
+
+if(!map[p.produto]) map[p.produto]=[];
+
+map[p.produto].push({...p, loja:l, media:m});
+});
+});
+
+let res=[];
+
+Object.values(map).forEach(lista=>{
+
+let precisa=[], sobra=[];
+
+lista.forEach(p=>{
+let n = p.media * document.getElementById("diasN").value - p.estoque;
+let e = p.estoque - p.media * document.getElementById("diasE").value;
+
+if(n>0) precisa.push({...p,qtd:Math.ceil(n)});
+if(e>0) sobra.push({...p,qtd:Math.floor(e)});
+});
+
+precisa.forEach(p=>{
+sobra.forEach(s=>{
+let q=Math.min(p.qtd,s.qtd);
+if(q>0){
+res.push({produto:p.produto,de:s.loja,para:p.loja,qtd:q});
+p.qtd-=q;
+s.qtd-=q;
+}
+});
+});
+
+});
+
+return res;
 }
 
-function renderTudo(){
-  document.getElementById("tabelaABC").innerHTML = renderABC();
-  document.getElementById("tabelaEstoque").innerHTML = renderEstoque();
-  document.getElementById("transferencias").innerHTML = renderTransferencias();
+// ===== RENDER TRANSFER =====
+function renderTransf(){
+let lista = transferencias();
+if(!lista.length) return "Sem transferência";
+
+let html="<table><tr><th>Produto</th><th>De</th><th>Para</th><th>Qtd</th></tr>";
+
+lista.forEach(t=>{
+html+=`<tr class="transfer">
+<td>${t.produto}</td>
+<td>${t.de}</td>
+<td>${t.para}</td>
+<td>${t.qtd}</td>
+</tr>`;
+});
+
+return html+"</table>";
 }
 
-// auto update
-document.getElementById("diasNecessidade").addEventListener("input", renderTudo);
-document.getElementById("diasExcesso").addEventListener("input", renderTudo);
+// ===== RENDER GERAL =====
+function render(){
+document.getElementById("abc").innerHTML = renderABC();
+document.getElementById("estoque").innerHTML = renderEstoque();
+document.getElementById("transf").innerHTML = renderTransf();
+}
 
 </script>
 
