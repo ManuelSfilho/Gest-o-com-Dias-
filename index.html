@@ -18,19 +18,8 @@ body{
 
 .titulo{
   text-align:center;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:12px;
-  margin-bottom:20px;
   font-weight:900;
-  flex-wrap:wrap;
-}
-
-.logo{
-  width:80px;
-  height:80px;
-  border-radius:16px;
+  margin-bottom:20px;
 }
 
 .topo{
@@ -87,11 +76,7 @@ th{
 td{
   padding:6px;
   border-bottom:1px solid #555;
-  font-size:12px;
 }
-
-.baixo{background:#ff5252;}
-.alto{background:#4caf50;}
 
 @media(max-width:600px){
   .card,.cardestoque,.tabela-box{
@@ -126,7 +111,6 @@ td{
 <input type="file" onchange="carregarEstoque(event)">
 </div>
 
-<!-- NOVO CONTROLE -->
 <div class="card">
 <b>Dias de Cobertura</b><br><br>
 
@@ -196,7 +180,7 @@ const colVendido = acharColuna(exemplo, ["vend","qtd"]);
 
 dados = dados.map(l => ({
 grupo: l[colGrupo],
-produto: l[colDesc],
+produto: (l[colDesc] || "").toString().trim().toLowerCase(),
 estoque: Number(l[colEstoque]) || 0,
 vendidos: Number(l[colVendido]) || 0
 }));
@@ -224,7 +208,7 @@ const colEstoque = acharColuna(exemplo, ["estoque"]);
 
 dados = dados.map(l => ({
 grupo: l[colGrupo],
-nome: l[colNome],
+nome: (l[colNome] || "").toString().trim().toLowerCase(),
 estoque: Number(l[colEstoque]) || 0
 }));
 
@@ -241,7 +225,6 @@ function sugerirTransferencias(){
 let diasNecessidade = Number(document.getElementById("diasNecessidade").value) || 7;
 let diasExcesso = Number(document.getElementById("diasExcesso").value) || 14;
 
-// proteção
 if(diasExcesso <= diasNecessidade){
 diasExcesso = diasNecessidade + 3;
 }
@@ -253,7 +236,8 @@ let produtosMap = {};
 lojas.forEach(loja => {
 banco[loja].abc.forEach(p => {
 
-let chave = (p.produto || "").toLowerCase();
+let chave = p.produto;
+if(!chave) return;
 
 let media = p.vendidos / 30;
 if(media <= 0) return;
@@ -261,6 +245,7 @@ if(media <= 0) return;
 if(!produtosMap[chave]) produtosMap[chave] = [];
 
 produtosMap[chave].push({
+produto: chave,
 loja,
 estoque: p.estoque,
 media
@@ -289,7 +274,7 @@ let qtd = Math.min(p.qtd, s.qtd);
 
 if(qtd > 0){
 sugestoes.push({
-produto: p.loja,
+produto: p.produto,
 de: s.loja,
 para: p.loja,
 qtd
@@ -311,10 +296,11 @@ let lista = sugerirTransferencias();
 
 if(!lista.length) return "Sem sugestões";
 
-let html = "<table><tr><th>De</th><th>Para</th><th>Qtd</th></tr>";
+let html = "<table><tr><th>Produto</th><th>De</th><th>Para</th><th>Qtd</th></tr>";
 
 lista.forEach(t => {
 html += `<tr>
+<td>${t.produto}</td>
 <td>${t.de}</td>
 <td>${t.para}</td>
 <td>${t.qtd}</td>
@@ -330,7 +316,7 @@ function renderTudo(){
 document.getElementById("transferencias").innerHTML = renderTransferencias();
 }
 
-// atualização automática
+// atualizar automático
 document.getElementById("diasNecessidade").addEventListener("input", renderTudo);
 document.getElementById("diasExcesso").addEventListener("input", renderTudo);
 
