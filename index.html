@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Lojas</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+#filtroDE, #filtroPA {
+  color: #ff5252;
+  background: #1f1f1f;
+  border: 1px solid #ff5252;
+}
+
+#lojaSelecionada {
+  color: #ff5252; /* cor do texto */
+  font-weight: 1000; /* opcional, deixa mais destacado */
+}
+  
+:root {
+  --primary: #ff5252;
+  --primary-light: #ff7070;
+  --success: #4caf50;
+  --bg-dark: #1e2228;
+  --bg-card: #525151;
+  --text-primary: #f1f1f1;
+  --text-secondary: #b0b0b0;
+  --border: #3a3a3a;
+  --radius: 12px;
+  --spacing: 16px;
+  --font-weights: {
+    regular: 900,
+    medium: 900,
+    semibold: 900,
+    bold: 
+  };
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: linear-gradient(135deg, var(--bg-dark) 0%, #1e2228 100%);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  padding: 8px;
+  line-height: 1.4;
+  min-height: 100vh;
+  font-size: 0.85rem;
+}
+
+/* HEADER */
+.header {
+  margin-bottom: 1rem;
+  animation: slideDown 0.6s ease-out;
+}
+
+.header h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 0.25rem;
+  letter-spacing: -0.5px;
+}
+
+.header .subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+/* SEÇÃO DE CONTROLES */
+.controls-section {
+  margin-bottom: 1rem;
+  animation: fadeIn 0.6s ease-out 0.1s backwards;
+}
+
+.controls-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.control-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  transition: all 0.3s ease;
+}
+
+.control-cardloja {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  transition: all 0.3s ease;
+}
+
+.control-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px rgba(255, 82, 82, 0.1);
+}
+
+.control-card label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 0.4rem;
+  color: var(--text-secondary);
+}
+
+.control-card b {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+/* INPUTS E SELECTS */
+input, select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+  margin-bottom: 0.5rem;
+}
+
+input:last-child, select:last-child {
+  margin-bottom: 0;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(255, 82, 82, 0.1);
+}
+
+input[type="file"] {
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+input[type="number"] {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+input[type="text"] {
+  font-family: 'Outfit', sans-serif;
+}
+
+.input-group {
+  margin-bottom: 1rem;
+}
+
+.input-group:last-child {
+  margin-bottom: 0;
+}
+
+/* SEÇÃO DE FILTROS */
+.filter-section {
+  margin-bottom: 1rem;
+  animation: fadeIn 0.6s ease-out 0.2s backwards;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.filter-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+}
+
+.filter-card label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+/* BOTÕES DE FILTRO */
+.filter-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.filter-btn {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  border-color: var(--primary);
+  background: rgba(255, 82, 82, 0.1);
+  color: var(--primary);
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: var(--text-primary);
+  border-color: var(--primary);
+  font-weight: 600;
+}
+
+/* SEÇÃO DE DADOS */
+.data-section {
+  margin-bottom: 1rem;
+  animation: fadeIn 0.6s ease-out 0.3s backwards;
+}
+
+.data-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.table-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  overflow: hidden;
+}
+
+.table-box h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.table-box h3::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--primary);
+  border-radius: 2px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+th {
+  background: var(--primary);
+  padding: 0.5rem 0.4rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border: none;
+}
+
+td {
+  padding: 0.4rem 0.3rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+tr:hover {
+  background: rgba(209, 5, 228, 0.822);
+}
+
+/* CORES DE ALERTA */
+.alert-low {
+  background: rgba(4, 87, 211, 0.918) !important;
+  color: #ff5252;
+  font-weight: 900;
+}
+
+.alert-critical {
+  background: rgba(221, 41, 41, 0.692) !important;
+  color: #ff3333;
+  font-weight: 900;
+  
+}
+
+.pedido-ok {
+  color: var(--success) !important;
+  font-weight: 900;
+}
+
+.pedido-baixo {
+  color: var(--primary) !important;
+  font-weight: 900;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.result-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+/* STATUS BADGES */
+.badge-success {
+  background: rgba(76, 175, 80, 0.15);
+  color: var(--success);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.badge-warning {
+  background: rgba(255, 82, 82, 0.15);
+  color: var(--primary);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+/* RESPONSIVE - TABLET */
+@media (min-width: 768px) {
+  .controls-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .filter-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .data-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .header h1 {
+    font-size: 2.25rem;
+  }
+}
+
+/* RESPONSIVE - DESKTOP */
+@media (min-width: 1024px) {
+  body {
+    padding: 2rem;
+  }
+  
+  .controls-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .filter-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .data-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .header {
+    margin-bottom: 3rem;
+  }
+}
+
+/* ANIMAÇÕES */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* SCROLLBAR CUSTOMIZADO */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-card);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>📊 Painel de Lojas</h1>
+  <div class="subtitle">Gestão de transferências e análise ABC</div>
+</div>
+
+<!-- SEÇÃO DE CONTROLES -->
+<div class="controls-section">
+  <div class="controls-title">Configuração</div>
+  <div class="controls-grid">
+
+    <div class="control-cardloja">
+      <b>🏪 Selecione a Loja</b>
+      <select id="lojaSelecionada" onchange="renderTudo()">
+        <option value="Agulhas Negras">Agulhas Negras</option>
+        <option value="Pedra">Pedra</option>
+        <option value="Vargem Grande">Vargem Grande</option>
+        <option value="Ilha de Guaratiba">Ilha de Guaratiba</option>
+      </select>
+    </div>
+
+    <div class="control-card">
+      <b>📦 Produtos ABC</b>
+      <input type="file" onchange="carregarABC(event)">
+    </div>
+
+    <div class="control-card">
+      <b>📍 Posição do Estoque</b>
+      <input type="file" onchange="carregarEstoque(event)">
+    </div>
+
+    <div class="control-card">
+      <b>⏱️ Dias de Cobertura</b>
+      <div class="input-group">
+        <label>Necessidade (dias):</label>
+        <input type="number" id="diasNecessidade" value="7">
+      </div>
+      <div class="input-group">
+        <label>Excesso (dias):</label>
+        <input type="number" id="diasExcesso" value="14">
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SEÇÃO DE DADOS -->
+<div class="data-section">
+  <div class="controls-title">Análise</div>
+  
+  <div class="data-grid" style="grid-template-columns: 1fr 1fr; gap: 15px;">
+    
+    <!-- COLUNA ABC -->
+    <div>
+      <!-- Filtros ABC -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem;">
+        <div class="filter-card">
+          <label>🔍 Buscar Produto (ABC)</label>
+          <input type="text" id="buscaABC" placeholder="Digite o nome..." onkeyup="renderTudo()">
+        </div>
+        <div class="filter-card">
+          <label>📂 Filtrar por Grupo (ABC)</label>
+          <div class="filter-buttons" id="filtrosGrupoABC"></div>
+        </div>
+      </div>
+
+      <!-- Tabela ABC -->
+      <div class="table-box">
+        <h3>Produtos ABC</h3>
+        <div class="result-count" id="countABC"></div>
+        <div class="table-wrapper">
+          <div id="tabelaABC"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUNA ESTOQUE -->
+    <div>
+      <!-- Filtros Estoque -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem;">
+        <div class="filter-card">
+          <label>🔍 Buscar Estoque</label>
+          <input type="text" id="buscaEstoque" placeholder="Digite o nome..." onkeyup="renderTudo()">
+        </div>
+        <div class="filter-card">
+          <label>📂 Filtrar por Grupo (Estoque)</label>
+          <div class="filter-buttons" id="filtrosGrupoEstoque"></div>
+        </div>
+      </div>
+
+      <!-- Tabela Estoque -->
+      <div class="table-box">
+        <h3>Estoque</h3>
+        <div class="result-count" id="countEstoque"></div>
+        <div class="table-wrapper">
+          <div id="tabelaEstoque"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FILTROS DE TRANSFERÊNCIAS -->
+<div class="filter-section" style="margin-bottom: 1rem;">
+  <div class="controls-title">Filtros de Transferência</div>
+  <div class="filter-grid">
+    <div class="filter-card">
+      <label>🔍 Busca Produto</label>
+      <input type="text" id="buscaTransf" placeholder="Filtrar por produto..." onkeyup="renderTudo()">
+    </div>
+    <div class="filter-card">
+      <label>🏪 Filtrar por DE (Origem)</label>
+      <select id="filtroDE" onchange="renderTudo()">
+        <option value="">Todas as origens</option>
+      </select>
+    </div>
+    <div class="filter-card">
+      <label>➡️ Filtrar por PARA (Destino)</label>
+      <select id="filtroPA" onchange="renderTudo()">
+        <option value="">Todos os destinos</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- TRANSFERÊNCIAS -->
+<div class="table-box" style="margin-bottom: 2rem;">
+  <h3>Transferências Sugeridas</h3>
+  <div class="result-count" id="countTransferencias"></div>
+  <div class="table-wrapper">
+    <div id="transferencias"></div>
+  </div>
+</div>
+
+<script>
+
+let banco = {
+"Agulhas Negras": {abc: [], estoque: []},
+"Pedra": {abc: [], estoque: []},
+"Vargem Grande": {abc: [], estoque: []},
+"Ilha de Guaratiba": {abc: [], estoque: []}
+};
+
+// Variáveis para armazenar filtros selecionados
+let filtrosAtivos = {
+  grupoABC: null,
+  grupoEstoque: null
+};
+
+function lojaAtual(){
+return document.getElementById("lojaSelecionada").value;
+}
+
+function acharColuna(obj, nomes){
+return Object.keys(obj).find(k =>
+nomes.some(n => k.toLowerCase().includes(n))
+);
+}
+
+// ===== ATUALIZAR FILTROS DE TRANSFERÊNCIA =====
+function atualizarFiltrosTransf(){
+let lojas = Object.keys(banco);
+
+// Atualizar select DE
+let selectDE = document.getElementById("filtroDE");
+selectDE.innerHTML = '<option value="">Todas as origens</option>';
+lojas.forEach(loja => {
+  let option = document.createElement("option");
+  option.value = loja;
+  option.textContent = loja;
+  selectDE.appendChild(option);
+});
+
+// Atualizar select PARA
+let selectPA = document.getElementById("filtroPA");
+selectPA.innerHTML = '<option value="">Todos os destinos</option>';
+lojas.forEach(loja => {
+  let option = document.createElement("option");
+  option.value = loja;
+  option.textContent = loja;
+  selectPA.appendChild(option);
+});
+}
+
+// ===== ATUALIZAR DROPDOWNS DE GRUPO (AGORA COM BOTÕES CLICÁVEIS) =====
+function atualizarGrupos(){
+let gruposABC = [...new Set(banco[lojaAtual()].abc.map(p => p.grupo).filter(Boolean))].sort();
+let gruposEst = [...new Set(banco[lojaAtual()].estoque.map(p => p.grupo).filter(Boolean))].sort();
+
+// Limpar botões antigos
+let containerABC = document.getElementById("filtrosGrupoABC");
+let containerEst = document.getElementById("filtrosGrupoEstoque");
+
+containerABC.innerHTML = '';
+containerEst.innerHTML = '';
+
+// Botão "Todos" para ABC
+let btnTodosABC = document.createElement("button");
+btnTodosABC.className = "filter-btn active";
+btnTodosABC.textContent = "Todos";
+btnTodosABC.onclick = () => {
+  filtrosAtivos.grupoABC = null;
+  atualizarBotoesGrupo('ABC');
+  renderTudo();
+};
+containerABC.appendChild(btnTodosABC);
+
+// Botões para grupos ABC
+gruposABC.forEach(g => {
+  let btn = document.createElement("button");
+  btn.className = "filter-btn";
+  btn.textContent = g;
+  btn.onclick = () => {
+    filtrosAtivos.grupoABC = g;
+    atualizarBotoesGrupo('ABC');
+    renderTudo();
+  };
+  containerABC.appendChild(btn);
+});
+
+// Botão "Todos" para Estoque
+let btnTodosEst = document.createElement("button");
+btnTodosEst.className = "filter-btn active";
+btnTodosEst.textContent = "Todos";
+btnTodosEst.onclick = () => {
+  filtrosAtivos.grupoEstoque = null;
+  atualizarBotoesGrupo('Estoque');
+  renderTudo();
+};
+containerEst.appendChild(btnTodosEst);
+
+// Botões para grupos Estoque
+gruposEst.forEach(g => {
+  let btn = document.createElement("button");
+  btn.className = "filter-btn";
+  btn.textContent = g;
+  btn.onclick = () => {
+    filtrosAtivos.grupoEstoque = g;
+    atualizarBotoesGrupo('Estoque');
+    renderTudo();
+  };
+  containerEst.appendChild(btn);
+});
+}
+
+// ===== ATUALIZAR VISUAL DOS BOTÕES =====
+function atualizarBotoesGrupo(tipo){
+let container = tipo === 'ABC' ? document.getElementById("filtrosGrupoABC") : document.getElementById("filtrosGrupoEstoque");
+let filtroAtivo = tipo === 'ABC' ? filtrosAtivos.grupoABC : filtrosAtivos.grupoEstoque;
+
+let botoes = container.querySelectorAll(".filter-btn");
+botoes.forEach((btn, idx) => {
+  if(idx === 0) {
+    // Botão "Todos"
+    btn.classList.toggle('active', filtroAtivo === null);
+  } else {
+    // Outros botões
+    btn.classList.toggle('active', btn.textContent === filtroAtivo);
+  }
+});
+}
+
+// ===== ABC =====
+function carregarABC(e){
+const reader = new FileReader();
+
+reader.onload = function(e){
+const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+const exemplo = dados[0];
+
+const colGrupo = acharColuna(exemplo, ["grupo"]);
+const colDesc = acharColuna(exemplo, ["descr","produto","nome"]);
+const colEstoque = acharColuna(exemplo, ["estoque"]);
+const colVendido = acharColuna(exemplo, ["vend","qtd"]);
+
+dados = dados.map(l => ({
+grupo: l[colGrupo],
+produto: l[colDesc],
+estoque: Number(l[colEstoque]) || 0,
+vendidos: Number(l[colVendido]) || 0
+}));
+
+banco[lojaAtual()].abc = dados;
+atualizarGrupos();
+atualizarFiltrosTransf();
+renderTudo();
+};
+
+reader.readAsArrayBuffer(e.target.files[0]);
+}
+
+// ===== ESTOQUE =====
+function carregarEstoque(e){
+const reader = new FileReader();
+
+reader.onload = function(e){
+const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+const exemplo = dados[0];
+
+const colGrupo = acharColuna(exemplo, ["grupo"]);
+const colNome = acharColuna(exemplo, ["nome","descr"]);
+const colEstoque = acharColuna(exemplo, ["estoque"]);
+
+dados = dados.map(l => ({
+grupo: l[colGrupo],
+nome: l[colNome],
+estoque: Number(l[colEstoque]) || 0
+}));
+
+banco[lojaAtual()].estoque = dados;
+atualizarGrupos();
+atualizarFiltrosTransf();
+renderTudo();
+};
+
+reader.readAsArrayBuffer(e.target.files[0]);
+}
+
+// ===== RENDER ABC COM FILTROS E BUSCA =====
+function renderABC(){
+let dados = banco[lojaAtual()].abc;
+
+if(!dados.length) return {html: '<div class="no-data">Carregue um arquivo de produtos ABC</div>', count: 0};
+
+let busca = document.getElementById("buscaABC").value.toLowerCase();
+let filtroGrupo = filtrosAtivos.grupoABC;
+let diasNecessidade = Number(document.getElementById("diasNecessidade").value) || 7;
+
+dados = dados.filter(p => {
+let passaBusca = !busca || (p.produto && p.produto.toLowerCase().includes(busca));
+let passaGrupo = !filtroGrupo || p.grupo === filtroGrupo;
+return passaBusca && passaGrupo;
+});
+
+let html = "<table><tr><th>Grupo</th><th>Produto</th><th>Est.</th><th>Méd/d</th><th>Ped.</th></tr>";
+dados.forEach(p => {
+let media = (p.vendidos / 30).toFixed(2);
+let sugestao = Math.ceil(media * diasNecessidade);
+let alertClass = '';
+let pedidoClass = sugestao >= 3 ? 'pedido-ok' : 'pedido-baixo';
+
+if(p.estoque < 4) alertClass = 'alert-critical';
+else if(p.estoque < 4) alertClass = 'alert-low';
+
+html += `<tr class="${alertClass}">
+<td>${p.grupo || '-'}</td>
+<td>${p.produto || '-'}</td>
+<td><strong>${p.estoque}</strong></td>
+<td>${media}</td>
+<td><strong class="${pedidoClass}">${sugestao}</strong></td>
+</tr>`;
+});
+html += "</table>";
+return {html, count: dados.length};
+}
+
+// ===== RENDER ESTOQUE COM FILTROS E BUSCA =====
+function renderEstoque(){
+let dados = banco[lojaAtual()].estoque;
+
+if(!dados.length) return {html: '<div class="no-data">Carregue um arquivo de estoque</div>', count: 0};
+
+let busca = document.getElementById("buscaEstoque").value.toLowerCase();
+let filtroGrupo = filtrosAtivos.grupoEstoque;
+let diasNecessidade = Number(document.getElementById("diasNecessidade").value) || 7;
+
+// Buscar dados de vendas para calcular média
+let vendidosMap = {};
+Object.values(banco).forEach(loja => {
+  loja.abc.forEach(p => {
+    let chave = (p.produto || "").toLowerCase();
+    if(!vendidosMap[chave]) vendidosMap[chave] = 0;
+    vendidosMap[chave] += p.vendidos;
+  });
+});
+
+dados = dados.filter(p => {
+let passaBusca = !busca || (p.nome && p.nome.toLowerCase().includes(busca));
+let passaGrupo = !filtroGrupo || p.grupo === filtroGrupo;
+return passaBusca && passaGrupo;
+});
+
+let html = "<table><tr><th>Grupo</th><th>Nome</th><th>Est.</th><th>Méd/d</th><th>Ped.</th></tr>";
+dados.forEach(p => {
+let chave = (p.nome || "").toLowerCase();
+let vendidosTotal = vendidosMap[chave] || 0;
+let media = (vendidosTotal / 30).toFixed(2);
+let sugestao = Math.ceil(media * diasNecessidade);
+let alertClass = '';
+let pedidoClass = sugestao >= 3 ? 'pedido-ok' : 'pedido-baixo';
+
+if(p.estoque < 4) alertClass = 'alert-critical';
+else if(p.estoque < 4) alertClass = 'alert-low';
+
+html += `<tr class="${alertClass}">
+<td>${p.grupo || '-'}</td>
+<td>${p.nome || '-'}</td>
+<td><strong>${p.estoque}</strong></td>
+<td>${media}</td>
+<td><strong class="${pedidoClass}">${sugestao}</strong></td>
+</tr>`;
+});
+html += "</table>";
+return {html, count: dados.length};
+}
+
+// ===== TRANSFERÊNCIA CORRIGIDA =====
+function sugerirTransferencias(){
+
+let diasNecessidade = Number(document.getElementById("diasNecessidade").value) || 7;
+let diasExcesso = Number(document.getElementById("diasExcesso").value) || 14;
+
+if(diasExcesso <= diasNecessidade){
+diasExcesso = diasNecessidade + 3;
+}
+
+let lojas = Object.keys(banco);
+let sugestoes = [];
+let produtosMap = {};
+
+lojas.forEach(loja => {
+banco[loja].abc.forEach(p => {
+
+let chave = (p.produto || "").toLowerCase();
+
+let media = p.vendidos / 30;
+if(media <= 0) return;
+
+if(!produtosMap[chave]) produtosMap[chave] = {nome: p.produto, lojas: []};
+
+produtosMap[chave].lojas.push({
+loja,
+estoque: p.estoque,
+media
+});
+});
+});
+
+Object.values(produtosMap).forEach(produtoData => {
+let dados = produtoData.lojas;
+let nomeProduto = produtoData.nome;
+
+let precisa = [];
+let sobra = [];
+
+dados.forEach(d => {
+
+let necessidade = (d.media * diasNecessidade) - d.estoque;
+let excesso = d.estoque - (d.media * diasExcesso);
+
+if(necessidade > 0) precisa.push({...d, qtd: Math.ceil(necessidade)});
+if(excesso > 0) sobra.push({...d, qtd: Math.floor(excesso)});
+});
+
+precisa.forEach(p => {
+sobra.forEach(s => {
+
+let qtd = Math.min(p.qtd, s.qtd);
+
+if(qtd > 0){
+sugestoes.push({
+produto: nomeProduto,
+de: s.loja,
+para: p.loja,
+qtd
+});
+
+p.qtd -= qtd;
+s.qtd -= qtd;
+}
+});
+});
+});
+
+return sugestoes;
+}
+
+// ===== RENDER TRANSFERÊNCIAS COM FILTROS =====
+function renderTransferencias(){
+let lista = sugerirTransferencias();
+
+if(!lista.length) return {html: '<div class="no-data">Sem sugestões de transferência</div>', count: 0};
+
+// Aplicar filtros
+let buscaProduto = document.getElementById("buscaTransf").value.toLowerCase();
+let filtroDE = document.getElementById("filtroDE").value;
+let filtroPA = document.getElementById("filtroPA").value;
+
+lista = lista.filter(t => {
+  let passaBusca = !buscaProduto || (t.produto && t.produto.toLowerCase().includes(buscaProduto));
+  let passaDE = !filtroDE || t.de === filtroDE;
+  let passaPA = !filtroPA || t.para === filtroPA;
+  return passaBusca && passaDE && passaPA;
+});
+
+let html = "<table><tr><th>Produto</th><th>De</th><th>Para</th><th>Quantidade</th></tr>";
+
+lista.forEach(t => {
+html += `<tr>
+<td>${t.produto || '-'}</td>
+<td>${t.de}</td>
+<td><strong style="color: var(--success);">${t.para}</strong></td>
+<td><strong style="color: var(--primary);">${t.qtd}</strong></td>
+</tr>`;
+});
+
+html += "</table>";
+
+return {html, count: lista.length};
+}
+
+// ===== RENDER PRINCIPAL =====
+function renderTudo(){
+let resABC = renderABC();
+let resEst = renderEstoque();
+let resTrans = renderTransferencias();
+
+document.getElementById("tabelaABC").innerHTML = resABC.html;
+document.getElementById("countABC").innerText = `${resABC.count} produto${resABC.count !== 1 ? 's' : ''}`;
+
+document.getElementById("tabelaEstoque").innerHTML = resEst.html;
+document.getElementById("countEstoque").innerText = `${resEst.count} item${resEst.count !== 1 ? 'ns' : ''}`;
+
+document.getElementById("transferencias").innerHTML = resTrans.html;
+document.getElementById("countTransferencias").innerText = `${resTrans.count} transferência${resTrans.count !== 1 ? 's' : ''}`;
+}
+
+// Atualização automática
+document.getElementById("diasNecessidade").addEventListener("input", renderTudo);
+document.getElementById("diasExcesso").addEventListener("input", renderTudo);
+
+</script>
+
+</body>
+</html>
