@@ -314,7 +314,7 @@ tr:hover {
 
 /* CORES DE ALERTA */
 .alert-low {
-  background: rgba(4, 87, 211, 0.918) !important;
+  background: transparent !important;
   color: #ff5252;
   font-weight: 900;
 }
@@ -724,33 +724,87 @@ botoes.forEach((btn, idx) => {
 
 // ===== ABC =====
 function carregarABC(e){
+
 const reader = new FileReader();
 
 reader.onload = function(e){
-const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+const wb = XLSX.read(
+  new Uint8Array(e.target.result),
+  {type:'array'}
+);
+
+let dados = XLSX.utils.sheet_to_json(
+  wb.Sheets[wb.SheetNames[0]]
+);
+
+if(!dados.length){
+  alert("Planilha ABC vazia.");
+  return;
+}
 
 const exemplo = dados[0];
 
-const colGrupo = acharColuna(exemplo, ["grupo"]);
-const colDesc = acharColuna(exemplo, ["descr","produto","nome"]);
-const colEstoque = acharColuna(exemplo, ["estoque"]);
-const colVendido = acharColuna(exemplo, ["vend","qtd"]);
+const colGrupo = acharColuna(exemplo, [
+  "grupo"
+]);
+
+const colDesc = acharColuna(exemplo, [
+  "descr",
+  "produto",
+  "nome"
+]);
+
+const colEstoque = acharColuna(exemplo, [
+  "estoque",
+  "saldo",
+  "qtd estoque"
+]);
+
+const colVendido = acharColuna(exemplo, [
+  "qtd. vendida",
+  "qtd vendida",
+  "quantidade vendida",
+  "vendida",
+  "vend"
+]);
+
+console.log("COLUNAS ABC:");
+console.log("Grupo:", colGrupo);
+console.log("Produto:", colDesc);
+console.log("Estoque:", colEstoque);
+console.log("Vendidos:", colVendido);
 
 dados = dados.map(l => ({
-grupo: l[colGrupo],
-produto: l[colDesc],
-estoque: Number(l[colEstoque]) || 0,
-vendidos: Number(l[colVendido]) || 0
+
+grupo: l[colGrupo] || "",
+
+produto: l[colDesc] || "",
+
+estoque: Number(
+  String(l[colEstoque] || 0)
+    .replace(",", ".")
+) || 0,
+
+vendidos: Number(
+  String(l[colVendido] || 0)
+    .replace(",", ".")
+) || 0
+
 }));
 
+console.log("DADOS ABC:", dados);
+
 banco[lojaAtual()].abc = dados;
+
 atualizarGrupos();
 atualizarFiltrosTransf();
 renderTudo();
+
 };
 
 reader.readAsArrayBuffer(e.target.files[0]);
+
 }
 
 // ===== ESTOQUE =====
@@ -758,14 +812,26 @@ function carregarEstoque(e){
 const reader = new FileReader();
 
 reader.onload = function(e){
+
 const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
 let dados = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 
 const exemplo = dados[0];
 
 const colGrupo = acharColuna(exemplo, ["grupo"]);
-const colNome = acharColuna(exemplo, ["nome","descr"]);
-const colEstoque = acharColuna(exemplo, ["estoque"]);
+const colNome = acharColuna(exemplo, ["nome","descr","produto"]);
+const colEstoque = acharColuna(exemplo, [
+  "estoque",
+  "saldo",
+  "dispon",
+  "qtd",
+  "quant"
+]);
+
+console.log("COLUNAS ENCONTRADAS:");
+console.log("Grupo:", colGrupo);
+console.log("Nome:", colNome);
+console.log("Estoque:", colEstoque);
 
 dados = dados.map(l => ({
 grupo: l[colGrupo],
@@ -773,10 +839,14 @@ nome: l[colNome],
 estoque: Number(l[colEstoque]) || 0
 }));
 
+console.log(dados);
+
 banco[lojaAtual()].estoque = dados;
+
 atualizarGrupos();
 atualizarFiltrosTransf();
 renderTudo();
+
 };
 
 reader.readAsArrayBuffer(e.target.files[0]);
@@ -784,40 +854,88 @@ reader.readAsArrayBuffer(e.target.files[0]);
 
 // ===== RENDER ABC COM FILTROS E BUSCA =====
 function renderABC(){
+
 let dados = banco[lojaAtual()].abc;
 
-if(!dados.length) return {html: '<div class="no-data">Carregue um arquivo de produtos ABC</div>', count: 0};
+if(!dados.length){
+  return {
+    html: '<div class="no-data">Carregue um arquivo de produtos ABC</div>',
+    count: 0
+  };
+}
 
 let busca = document.getElementById("buscaABC").value.toLowerCase();
 let filtroGrupo = filtrosAtivos.grupoABC;
 let diasNecessidade = Number(document.getElementById("diasNecessidade").value) || 7;
 
 dados = dados.filter(p => {
-let passaBusca = !busca || (p.produto && p.produto.toLowerCase().includes(busca));
-let passaGrupo = !filtroGrupo || p.grupo === filtroGrupo;
+
+let passaBusca =
+!busca ||
+(p.produto && p.produto.toLowerCase().includes(busca));
+
+let passaGrupo =
+!filtroGrupo ||
+p.grupo === filtroGrupo;
+
 return passaBusca && passaGrupo;
+
 });
 
-let html = "<table><tr><th>Grupo</th><th>Produto</th><th>Est.</th><th>Méd/d</th><th>Ped.</th></tr>";
+let html = `
+<table>
+<tr>
+<th>Grupo</th>
+<th>Produto</th>
+<th>Est.</th>
+<th>Qtd. Vendida</th>
+<th>Méd/d</th>
+<th>Ped.</th>
+</tr>
+`;
+
 dados.forEach(p => {
+
 let media = (p.vendidos / 30).toFixed(2);
+
 let sugestao = Math.ceil(media * diasNecessidade);
+
 let alertClass = '';
-let pedidoClass = sugestao >= 3 ? 'pedido-ok' : 'pedido-baixo';
+let pedidoClass = sugestao >= 3
+? 'pedido-ok'
+: 'pedido-baixo';
 
-if(p.estoque < 4) alertClass = 'alert-critical';
-else if(p.estoque < 4) alertClass = 'alert-low';
+if(p.estoque < 4){
+  alertClass = 'alert-critical';
+}
+else if(p.estoque < 8){
+  alertClass = 'alert-low';
+}
 
-html += `<tr class="${alertClass}">
+html += `
+<tr class="${alertClass}">
 <td>${p.grupo || '-'}</td>
 <td>${p.produto || '-'}</td>
 <td><strong>${p.estoque}</strong></td>
+<td><strong>${p.vendidos}</strong></td>
 <td>${media}</td>
-<td><strong class="${pedidoClass}">${sugestao}</strong></td>
-</tr>`;
+<td>
+<strong class="${pedidoClass}">
+${sugestao}
+</strong>
+</td>
+</tr>
+`;
+
 });
+
 html += "</table>";
-return {html, count: dados.length};
+
+return {
+html,
+count: dados.length
+};
+
 }
 
 // ===== RENDER ESTOQUE COM FILTROS E BUSCA =====
